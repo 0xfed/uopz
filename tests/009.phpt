@@ -31,11 +31,9 @@ try {
 	var_dump($t->getMessage());
 }
 
-try {
-	uopz_set_hook(Bar::class, "none", function(){});
-} catch (Throwable $t) {
-	var_dump($t->getMessage());
-}
+var_dump(uopz_set_hook(Bar::class, "none", function(){
+	var_dump("hook on undefined method");
+}));
 
 var_dump(uopz_set_hook("bar", function(){
 	var_dump("hook");
@@ -65,7 +63,7 @@ bool(true)
 object(Foo)#%d (0) {
 }
 string(%d) "failed to set hook for %s::%s, the method is defined in %s"
-string(%d) "failed to set hook for %s::%s, the method does not exist"
+bool(true)
 bool(true)
 string(4) "hook"
 bool(true)

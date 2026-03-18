@@ -26,9 +26,9 @@ typedef struct _uopz_hook_t {
 	zend_bool busy;
 } uopz_hook_t;
 
-zend_bool uopz_set_hook(zend_class_entry *clazz, zend_string *name, zval *closure);
-zend_bool uopz_unset_hook(zend_class_entry *clazz, zend_string *function);
-void uopz_get_hook(zend_class_entry *clazz, zend_string *function, zval *return_value);
+zend_bool uopz_set_hook(zend_class_entry *clazz, zend_string *class_name, zend_string *name, zval *closure);
+zend_bool uopz_unset_hook(zend_class_entry *clazz, zend_string *class_name, zend_string *function);
+void uopz_get_hook(zend_class_entry *clazz, zend_string *class_name, zend_string *function, zval *return_value);
 
 uopz_hook_t* uopz_find_hook(zend_function *function);
 void uopz_execute_hook(uopz_hook_t *uhook, zend_execute_data *execute_data, zend_bool skip, zend_bool variadic);

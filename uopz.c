@@ -355,60 +355,66 @@ static PHP_FUNCTION(uopz_set_static)
 
 /* {{{ proto bool uopz_set_hook(string class, string function, Closure hook)
 			 bool uopz_set_hook(string function, Closure hook) */
-static PHP_FUNCTION(uopz_set_hook) 
+static PHP_FUNCTION(uopz_set_hook)
 {
 	zend_string *function = NULL;
 	zend_class_entry *clazz = NULL;
+	zend_string *class_name = NULL;
 	zval *hook = NULL;
 
 	uopz_disabled_guard();
-	
+
 	if (uopz_parse_parameters("CSO", &clazz, &function, &hook, zend_ce_closure) != SUCCESS &&
+		uopz_parse_parameters("SSO", &class_name, &function, &hook, zend_ce_closure) != SUCCESS &&
 		uopz_parse_parameters("SO", &function, &hook, zend_ce_closure) != SUCCESS) {
 		uopz_refuse_parameters(
 				"unexpected parameter combination, expected (class, function, hook) or (function, hook)");
 		return;
 	}
 
-	RETURN_BOOL(uopz_set_hook(clazz, function, hook));
+	RETURN_BOOL(uopz_set_hook(clazz, class_name, function, hook));
 } /* }}} */
 
 /* {{{ proto bool uopz_unset_hook(string class, string function)
 			 bool uopz_unset_hook(string function) */
-static PHP_FUNCTION(uopz_unset_hook) 
+static PHP_FUNCTION(uopz_unset_hook)
 {
 	zend_string *function = NULL;
 	zend_class_entry *clazz = NULL;
+	zend_string *class_name = NULL;
 
 	uopz_disabled_guard();
 
 	if (uopz_parse_parameters("CS", &clazz, &function) != SUCCESS &&
+		uopz_parse_parameters("SS", &class_name, &function) != SUCCESS &&
 		uopz_parse_parameters("S", &function) != SUCCESS) {
 		uopz_refuse_parameters(
 				"unexpected parameter combination, expected (class, function) or (function)");
 		return;
 	}
 
-	RETURN_BOOL(uopz_unset_hook(clazz, function));
+	RETURN_BOOL(uopz_unset_hook(clazz, class_name, function));
 } /* }}} */
 
 /* {{{ proto Closure uopz_get_hook(string class, string function)
 			 Closure uopz_get_hook(string function) */
-static PHP_FUNCTION(uopz_get_hook) 
+static PHP_FUNCTION(uopz_get_hook)
 {
 	zend_string *function = NULL;
 	zend_class_entry *clazz = NULL;
+	zend_string *class_name = NULL;
 
 	uopz_disabled_guard();
 
 	if (uopz_parse_parameters("CS", &clazz, &function) != SUCCESS &&
+		uopz_parse_parameters("SS", &class_name, &function) != SUCCESS &&
 		uopz_parse_parameters("S", &function) != SUCCESS) {
 		uopz_refuse_parameters(
 				"unexpected parameter combination, expected (class, function) or (function)");
 		return;
-	}	
+	}
 
-	uopz_get_hook(clazz, function, return_value);
+	uopz_get_hook(clazz, class_name, function, return_value);
 } /* }}} */
 
 /* {{{ proto bool uopz_add_function(string class, string method, Closure function [, int flags = ZEND_ACC_PUBLIC [, bool all = false]])

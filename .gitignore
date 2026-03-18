@@ -4,6 +4,7 @@ build
 modules
 *.lo
 *.loT
+*.dep
 *.la
 Makefile
 Makefile.fragments
