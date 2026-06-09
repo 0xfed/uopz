@@ -61,7 +61,7 @@ zend_bool uopz_add_function(zend_class_entry *clazz, zend_string *name, zval *cl
 	zend_hash_update(functions, key, closure);
 	zval_copy_ctor(closure);
 
-	function = uopz_copy_closure(clazz, 
+	function = uopz_copy_closure(clazz, name,
 			(zend_function*) zend_get_closure_method_def(closure),
 			flags);
 
@@ -267,6 +267,7 @@ zend_bool uopz_set_static(zend_class_entry *clazz, zend_string *function, zval *
 			zval_ptr_dtor(v);
 		}
 
+		ZEND_ASSERT(Z_TYPE_P(statics) == IS_ARRAY);
 		if (!(y = zend_hash_find(Z_ARRVAL_P(statics), k))) {
 			ZVAL_NULL(v);
 			

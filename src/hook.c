@@ -29,23 +29,17 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(uopz);
 
-zend_bool uopz_set_hook(zend_class_entry *clazz, zend_string *name, zval *closure) { /* {{{ */
+zend_bool uopz_set_hook(zend_class_entry *clazz, zend_string *class_name, zend_string *name, zval *closure) { /* {{{ */
 	HashTable *hooks;
 	uopz_hook_t hook;
 	zend_string *key = zend_string_tolower(name);
-	zend_function *function;
+	zend_string *cn = clazz ? clazz->name : class_name;
 
 	if (clazz) {
-		if (uopz_find_method(clazz, key, &function) != SUCCESS) {
-			uopz_exception(
-				"failed to set hook for %s::%s, the method does not exist",
-				ZSTR_VAL(clazz->name),
-				ZSTR_VAL(name));
-			zend_string_release(key);
-			return 0;
-		}
+		zend_function *function = NULL;
 
-		if (function->common.scope != clazz) {
+		if (uopz_find_method(clazz, key, &function) == SUCCESS &&
+				function->common.scope != clazz) {
 			uopz_exception(
 				"failed to set hook for %s::%s, the method is defined in %s",
 				ZSTR_VAL(clazz->name),
@@ -56,15 +50,15 @@ zend_bool uopz_set_hook(zend_class_entry *clazz, zend_string *name, zval *closur
 		}
 	}
 
-	if (clazz) {
-		hooks = zend_hash_find_ptr(&UOPZ(hooks), clazz->name);
+	if (cn) {
+		hooks = zend_hash_find_ptr(&UOPZ(hooks), cn);
 	} else hooks = zend_hash_index_find_ptr(&UOPZ(hooks), 0);
-	
+
 	if (!hooks) {
 		ALLOC_HASHTABLE(hooks);
 		zend_hash_init(hooks, 8, NULL, uopz_hook_free, 0);
-		if (clazz) {
-			zend_hash_update_ptr(&UOPZ(hooks), clazz->name, hooks);
+		if (cn) {
+			zend_hash_update_ptr(&UOPZ(hooks), cn, hooks);
 		} else zend_hash_index_update_ptr(&UOPZ(hooks), 0, hooks);
 	}
 
@@ -80,12 +74,13 @@ zend_bool uopz_set_hook(zend_class_entry *clazz, zend_string *name, zval *closur
 	return 1;
 } /* }}} */
 
-zend_bool uopz_unset_hook(zend_class_entry *clazz, zend_string *function) { /* {{{ */
+zend_bool uopz_unset_hook(zend_class_entry *clazz, zend_string *class_name, zend_string *function) { /* {{{ */
 	HashTable *hooks;
 	zend_string *key = zend_string_tolower(function);
+	zend_string *cn = clazz ? clazz->name : class_name;
 
-	if (clazz) {
-		hooks = zend_hash_find_ptr(&UOPZ(hooks), clazz->name);
+	if (cn) {
+		hooks = zend_hash_find_ptr(&UOPZ(hooks), cn);
 	} else hooks = zend_hash_index_find_ptr(&UOPZ(hooks), 0);
 
 	if (!hooks || !zend_hash_exists(hooks, key)) {
@@ -99,13 +94,14 @@ zend_bool uopz_unset_hook(zend_class_entry *clazz, zend_string *function) { /* {
 	return 1;
 } /* }}} */
 
-void uopz_get_hook(zend_class_entry *clazz, zend_string *function, zval *return_value) { /* {{{ */
+void uopz_get_hook(zend_class_entry *clazz, zend_string *class_name, zend_string *function, zval *return_value) { /* {{{ */
 	HashTable *hooks;
 	uopz_hook_t *uhook;
 	zend_string *key = zend_string_tolower(function);
-	
-	if (clazz) {
-		hooks = zend_hash_find_ptr(&UOPZ(hooks), clazz->name);
+	zend_string *cn = clazz ? clazz->name : class_name;
+
+	if (cn) {
+		hooks = zend_hash_find_ptr(&UOPZ(hooks), cn);
 	} else hooks = zend_hash_index_find_ptr(&UOPZ(hooks), 0);
 
 	if (!hooks || !zend_hash_exists(hooks, key)) {
@@ -162,8 +158,15 @@ void uopz_execute_hook(uopz_hook_t *uhook, zend_execute_data *execute_data, zend
 
 	uhook->busy = 1;
 
-	zend_create_closure(&closure, (zend_function*) zend_get_closure_method_def(&uhook->closure), 
-		uhook->clazz, uhook->clazz, Z_OBJ(EX(This)) ? &EX(This) : NULL);
+	{
+		zend_class_entry *scope = uhook->clazz;
+		if (!scope && execute_data->func) {
+			scope = execute_data->func->common.scope;
+		}
+
+		zend_create_closure(&closure, (zend_function*) zend_get_closure_method_def(&uhook->closure),
+			scope, scope, Z_OBJ(EX(This)) ? &EX(This) : NULL);
+	}
 
 	zend_fcall_info_init(&closure, 0, &fci, &fcc, NULL, &error);
 

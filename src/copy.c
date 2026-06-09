@@ -197,7 +197,7 @@ static inline zend_arg_info* uopz_copy_arginfo(zend_op_array *op_array, zend_arg
 	return info;
 } /* }}} */
 
-zend_function* uopz_copy_closure(zend_class_entry *scope, zend_function *function, zend_long flags) { /* {{{ */
+zend_function* uopz_copy_closure(zend_class_entry *scope, zend_string *name, zend_function *function, zend_long flags) { /* {{{ */
 	zend_function  *copy;	
 	zend_op_array  *op_array;
 	zend_string   **variables;
@@ -213,7 +213,7 @@ zend_function* uopz_copy_closure(zend_class_entry *scope, zend_function *functio
 	literals = op_array->literals;
 	arg_info = op_array->arg_info;
 
-	op_array->function_name = zend_string_dup(op_array->function_name, 0);
+	op_array->function_name = zend_string_copy(name);
 	op_array->refcount = emalloc(sizeof(uint32_t));
 	(*op_array->refcount) = 1;
 
@@ -292,5 +292,4 @@ zend_function* uopz_copy_closure(zend_class_entry *scope, zend_function *functio
 	return copy;
 } /* }}} */
 #endif
-
 
