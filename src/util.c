@@ -157,23 +157,14 @@ static inline int uopz_closure_equals(zval *closure, zend_function *function) { 
 	return 0;
 } /* }}} */
 
-int uopz_clean_function(zval *zv) { /* {{{ */
-	zend_function *fp = Z_PTR_P(zv);
+static void uopz_clean_function_table(HashTable *table, HashTable *functions) { /* {{{ */
+	zend_string *name;
 
-	if (fp->type == ZEND_USER_FUNCTION) {
-		return ZEND_HASH_APPLY_REMOVE;
-	}
-
-	return ZEND_HASH_APPLY_KEEP;
-} /* }}} */
-
-int uopz_clean_class(zval *zv) { /* {{{ */
-	zend_class_entry *ce = Z_PTR_P(zv);
-	
-	zend_hash_apply(
-		&ce->function_table, uopz_clean_function);
-	
-	return ZEND_HASH_APPLY_KEEP;
+	ZEND_HASH_FOREACH_STR_KEY(functions, name) {
+		if (name) {
+			zend_hash_del(table, name);
+		}
+	} ZEND_HASH_FOREACH_END();
 } /* }}} */
 
 static inline void uopz_caller_switch(zif_handler *old, zif_handler *new) {
@@ -306,10 +297,14 @@ void uopz_request_init(void) { /* {{{ */
 } /* }}} */
 
 void uopz_request_shutdown(void) { /* {{{ */
+	zend_ulong table;
+	HashTable *functions;
+
 	CG(compiler_options) = UOPZ(copts);
 
-	zend_hash_apply(CG(class_table),    uopz_clean_class);
-	zend_hash_apply(CG(function_table), uopz_clean_function);
+	ZEND_HASH_FOREACH_NUM_KEY_PTR(&UOPZ(functions), table, functions) {
+		uopz_clean_function_table((HashTable *) table, functions);
+	} ZEND_HASH_FOREACH_END();
 
 	zend_hash_destroy(&UOPZ(functions));
 	zend_hash_destroy(&UOPZ(mocks));
