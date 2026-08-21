@@ -8,7 +8,7 @@ uopz overrides survive a second request in the same process (opcache + built-in 
 	if (!getenv('TEST_PHP_EXECUTABLE')) die("skip TEST_PHP_EXECUTABLE not set");
 	if (!function_exists('proc_open')) die("skip proc_open required");
 	if (!function_exists('fsockopen')) die("skip fsockopen required");
-	if (!class_exists('ReflectionExtension')) die("skip ReflectionExtension required");
+	if (!extension_loaded('Zend OPcache')) die("skip opcache required");
 ?>
 --INI--
 uopz.disable=0
@@ -21,8 +21,19 @@ $docroot = sys_get_temp_dir() . '/uopz-server-' . getmypid();
 @mkdir($docroot, 0700, true);
 copy(__DIR__ . '/0008-uopz-opcache-persistent.inc', $docroot . '/index.php');
 
-$uopz = (new ReflectionExtension('uopz'))->getFileName();
-$opcache = (new ReflectionExtension('Zend OPcache'))->getFileName();
+$uopz = dirname(__DIR__, 2) . '/modules/uopz.so';
+if (!is_file($uopz)) {
+	$uopz = PHP_EXTENSION_DIR . '/uopz.so';
+}
+$opcache = PHP_EXTENSION_DIR . '/opcache.so';
+if (!is_file($opcache)) {
+	$matches = glob('/usr/lib/php/*/opcache.so');
+	$opcache = $matches ? $matches[0] : $opcache;
+}
+if (!is_file($uopz) || !is_file($opcache)) {
+	echo "missing extension binaries uopz=$uopz opcache=$opcache\n";
+	exit(1);
+}
 $port = 20000 + (getmypid() % 10000);
 
 $args = [
