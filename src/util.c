@@ -35,6 +35,7 @@ static zend_internal_function *zend_call_user_func_ptr;
 static zend_internal_function *zend_call_user_func_array_ptr;
 static zend_internal_function *uopz_call_user_func_ptr;
 static zend_internal_function *uopz_call_user_func_array_ptr;
+static HashTable uopz_internal_intercepts;
 
 #if PHP_VERSION_ID < 70200
 typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
@@ -157,13 +158,25 @@ static inline int uopz_closure_equals(zval *closure, zend_function *function) { 
 	return 0;
 } /* }}} */
 
+/* Only remove functions uopz itself added. Wiping every user function / method
+ * at RSHUTDOWN mutates opcache immutable tables in SHM and silently breaks
+ * every subsequent request in persistent SAPIs (Apache/FPM). */
 static void uopz_clean_function_table(HashTable *table, HashTable *functions) { /* {{{ */
 	zend_string *name;
 
 	ZEND_HASH_FOREACH_STR_KEY(functions, name) {
-		if (name) {
-			zend_hash_del(table, name);
+		if (!name) {
+			continue;
 		}
+#if PHP_VERSION_ID >= 70400
+		{
+			zend_function *function = zend_hash_find_ptr(table, name);
+			if (function && (function->common.fn_flags & ZEND_ACC_IMMUTABLE)) {
+				continue;
+			}
+		}
+#endif
+		zend_hash_del(table, name);
 	} ZEND_HASH_FOREACH_END();
 } /* }}} */
 
@@ -173,6 +186,53 @@ static inline void uopz_caller_switch(zif_handler *old, zif_handler *new) {
 	*old = *new;
 
 	*new = *current;
+}
+
+static void uopz_internal_handler(INTERNAL_FUNCTION_PARAMETERS) {
+	uopz_return_t *ureturn = uopz_find_return(execute_data->func);
+	zif_handler original = (zif_handler) zend_hash_index_find_ptr(
+		&uopz_internal_intercepts, (zend_ulong)(zend_uintptr_t) execute_data->func);
+
+	if (ureturn && !UOPZ_RETURN_IS_BUSY(ureturn)) {
+		if (UOPZ_RETURN_IS_EXECUTABLE(ureturn)) {
+			uopz_execute_return(ureturn, execute_data, return_value);
+			return;
+		}
+		if (return_value) {
+			ZVAL_COPY(return_value, &ureturn->value);
+		}
+		return;
+	}
+
+	if (original) {
+		original(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+	}
+}
+
+void uopz_intercept_internal(zend_function *function) {
+	zend_internal_function *internal;
+
+	if (!function || function->type != ZEND_INTERNAL_FUNCTION) {
+		return;
+	}
+
+	internal = &function->internal_function;
+	if (internal->handler == uopz_internal_handler) {
+		return;
+	}
+
+	zend_hash_index_update_ptr(&uopz_internal_intercepts,
+		(zend_ulong)(zend_uintptr_t) function, (void*) internal->handler);
+	internal->handler = uopz_internal_handler;
+}
+
+static void uopz_restore_internal_intercepts(void) {
+	zend_ulong idx;
+	void *original;
+
+	ZEND_HASH_FOREACH_NUM_KEY_PTR(&uopz_internal_intercepts, idx, original) {
+		((zend_internal_function *) idx)->handler = (zif_handler) original;
+	} ZEND_HASH_FOREACH_END();
 }
 
 static void uopz_callers_init(void) { /* {{{ */
@@ -285,6 +345,7 @@ void uopz_request_init(void) { /* {{{ */
 	zend_hash_init(&UOPZ(returns), 8, NULL, uopz_table_dtor, 0);
 	zend_hash_init(&UOPZ(mocks), 8, NULL, uopz_zval_dtor, 0);
 	zend_hash_init(&UOPZ(hooks), 8, NULL, uopz_table_dtor, 0);
+	zend_hash_init(&uopz_internal_intercepts, 8, NULL, NULL, 0);
 
 	{
 		char *report = getenv("UOPZ_REPORT_MEMLEAKS");
@@ -305,6 +366,9 @@ void uopz_request_shutdown(void) { /* {{{ */
 	ZEND_HASH_FOREACH_NUM_KEY_PTR(&UOPZ(functions), table, functions) {
 		uopz_clean_function_table((HashTable *) table, functions);
 	} ZEND_HASH_FOREACH_END();
+
+	uopz_restore_internal_intercepts();
+	zend_hash_destroy(&uopz_internal_intercepts);
 
 	zend_hash_destroy(&UOPZ(functions));
 	zend_hash_destroy(&UOPZ(mocks));

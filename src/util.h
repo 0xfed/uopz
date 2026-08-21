@@ -28,6 +28,8 @@ int uopz_find_method(zend_class_entry *ce, zend_string *name, zend_function **fu
 
 zend_bool uopz_is_magic_method(zend_class_entry *clazz, zend_string *function);
 
+void uopz_intercept_internal(zend_function *function);
+
 void uopz_request_init(void);
 void uopz_request_shutdown(void);
 

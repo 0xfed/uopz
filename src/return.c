@@ -33,7 +33,7 @@ zend_bool uopz_set_return(zend_class_entry *clazz, zend_string *name, zval *valu
 	HashTable *returns;
 	uopz_return_t ret;
 	zend_string *key = zend_string_tolower(name);
-	zend_function *function;
+	zend_function *function = NULL;
 
 	if (clazz) {
 		if (uopz_find_method(clazz, key, &function) != SUCCESS) {
@@ -54,6 +54,8 @@ zend_bool uopz_set_return(zend_class_entry *clazz, zend_string *name, zval *valu
 			zend_string_release(key);
 			return 0;
 		}
+	} else {
+		uopz_find_function(CG(function_table), key, &function);
 	}
 
 	if (clazz) {
@@ -76,6 +78,8 @@ zend_bool uopz_set_return(zend_class_entry *clazz, zend_string *name, zval *valu
 	ret.flags = execute ? UOPZ_RETURN_EXECUTE : 0;
 
 	zend_hash_update_mem(returns, key, &ret, sizeof(uopz_return_t));
+
+	uopz_intercept_internal(function);
 
 	zend_string_release(key);
 	return 1;

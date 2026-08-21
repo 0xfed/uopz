@@ -51,6 +51,17 @@ zend_bool uopz_add_function(zend_class_entry *clazz, zend_string *name, zval *cl
 		return 0;
 	}
 
+#if PHP_VERSION_ID >= 70400
+	if (clazz && (clazz->ce_flags & ZEND_ACC_IMMUTABLE)) {
+		uopz_exception(
+			"will not add method %s::%s, class entry is immutable (opcache)",
+			ZSTR_VAL(clazz->name),
+			ZSTR_VAL(name));
+		zend_string_release(key);
+		return 0;
+	}
+#endif
+
 	if (!(functions = zend_hash_index_find_ptr(&UOPZ(functions), (zend_long) table))) {
 		ALLOC_HASHTABLE(functions);
 		zend_hash_init(functions, 8, NULL, uopz_zval_dtor, 0);

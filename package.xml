@@ -102,6 +102,9 @@ It supports the following activities:
       <file name="0004-uopz_set_property.phpt" role="test" />
       <file name="0005-uopz_set_return_prototype.phpt" role="test" />
       <file name="0006-uopz-opcache-const-subst.phpt" role="test" />
+      <file name="0007-uopz-opcache-set-return.phpt" role="test" />
+      <file name="0008-uopz-opcache-persistent.inc" role="test" />
+      <file name="0008-uopz-opcache-persistent.phpt" role="test" />
       <file name="gh43.phpt" role="test" />
       <file name="gh53.phpt" role="test" />
       <file name="gh64.phpt" role="test" />

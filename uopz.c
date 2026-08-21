@@ -122,12 +122,15 @@ static PHP_RINIT_FUNCTION(uopz)
 
 		/* must disable block pass 1 constant substitution */
 		level &= ~(1<<0);
-		
+
 		/* disable CFG optimization (exit optimized away here) */
 		level &= ~(1<<4);
 
 		/* disable DCE (want code after exit) */
 		level &= ~(1<<13);
+
+		/* don't inline functions (calls must remain interceptable) */
+		level &= ~(1<<15);
 
 		value = strpprintf(0, "0x%08X", (unsigned int) level);
 
